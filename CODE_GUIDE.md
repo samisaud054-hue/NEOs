@@ -1,261 +1,261 @@
-# دليل الكود (Code Guide) — شرح كل ملف تنفيذي
+# Code Guide — Explanation of Every Executable File
 
-هذا الملف مرجع للمهندس لفهم كل وحدة في المشروع: **ماذا تفعل، مكوّناتها، كيف تعمل، ولماذا صُمّمت هكذا، وكيف تتصل بغيرها**.
+This file is a reference for the engineer to understand each module in the project: **what it does, its components, how it works, why it was designed that way, and how it connects to others**.
 
-ترتيب الشرح يتبع تدفّق البيانات: من المجال → التحميل → التخزين → التصفية → الواجهة → الإخراج → الدخول.
+The explanation order follows the data flow: domain → extraction → storage → filtering → facade → output → entry.
 
 ```
 models → extract → database → filters → facade → (display / write) → cli → __main__
 ```
 
-جدول سريع:
+Quick table:
 
-| الملف | الطبقة | يصدّر | يعتمد على |
-|-------|--------|-------|-----------|
-| `models.py` | المجال | `NearEarthObject`, `CloseApproach` | — (stdlib فقط) |
-| `extract.py` | تحميل | `load_neos`, `load_approaches` | `models` |
-| `database.py` | تخزين+ربط | `NEODatabase` | `models`, `filters` |
-| `filters.py` | تصفية | `FilterStrategy`, الاستراتيجيات, `create_filters` | `models` |
-| `facade.py` | واجهة | `NEOExplorerFacade` | `extract`, `database`, `filters`, `models` |
-| `display.py` | إخراج | `print_approaches`, `print_neo` | `models` |
-| `write.py` | إخراج | `write_to_csv`, `write_to_json` | `models` |
-| `cli.py` | دخول | `main` | `facade`, `filters`, `display`, `write`, `models` |
-| `__main__.py` | دخول | — | `cli` |
-| `__init__.py` | حزمة | صادرات عامة | `models`, `database`, `facade` |
+| File | Layer | Exports | Depends on |
+|------|-------|---------|------------|
+| `models.py` | Domain | `NearEarthObject`, `CloseApproach` | — (stdlib only) |
+| `extract.py` | Extraction | `load_neos`, `load_approaches` | `models` |
+| `database.py` | Storage+Linking | `NEODatabase` | `models`, `filters` |
+| `filters.py` | Filtering | `FilterStrategy`, strategies, `create_filters` | `models` |
+| `facade.py` | Facade | `NEOExplorerFacade` | `extract`, `database`, `filters`, `models` |
+| `display.py` | Output | `print_approaches`, `print_neo` | `models` |
+| `write.py` | Output | `write_to_csv`, `write_to_json` | `models` |
+| `cli.py` | Entry | `main` | `facade`, `filters`, `display`, `write`, `models` |
+| `__main__.py` | Entry | — | `cli` |
+| `__init__.py` | Package | public exports | `models`, `database`, `facade` |
 
 ---
 
-## 1) `models.py` — كائنات المجال
+## 1) `models.py` — Domain objects
 
-**ماذا يفعل:** يعرّف الكيانين الأساسيين للنظام كحاملي بيانات نقيّين. لا يقرأ ملفات، لا يطبع، لا يحوّل نصوصًا خام. كل كيان يوفّر `__str__` لوصف مقروء.
+What it does: defines the two core entities of the system as pure data holders. It does not read files, print, or parse raw text. Each entity provides `__str__` for a human-readable description.
 
 ### `class NearEarthObject`
-جرم قريب من الأرض.
+Near-Earth object.
 
-| الخاصية | النوع | المعنى |
-|---------|------|--------|
-| `designation` | `str` | المُعرِّف الأساسي (فريد) |
-| `name` | `str \| None` | الاسم الرسمي (قد يكون `None`) |
-| `diameter` | `float` | القطر بالكيلومتر، أو `float("nan")` إن كان مجهولًا |
-| `hazardous` | `bool` | هل يمثّل خطرًا |
-| `approaches` | `list[CloseApproach]` | اقترابات هذا الجرم (تبدأ فارغة، تملؤها `NEODatabase`) |
+| Property | Type | Meaning |
+|----------|------|---------|
+| `designation` | `str` | the primary identifier (unique) |
+| `name` | `str \| None` | the official name (may be `None`) |
+| `diameter` | `float` | diameter in kilometers, or `float("nan")` if unknown |
+| `hazardous` | `bool` | whether it is potentially hazardous |
+| `approaches` | `list[CloseApproach]` | the approaches of this object (starts empty, filled by `NEODatabase`) |
 
-- `fullname` (property): يجمع الـdesignation والاسم بشكل مقروء.
-- `__str__`: يستخدم `math.isnan(self.diameter)` للتعبير عن القطر المجهول.
+- `fullname` (property): composes the designation and the name in a readable form.
+- `__str__`: uses `math.isnan(self.diameter)` to express an unknown diameter.
 
 ### `class CloseApproach`
-اقتراب واحد من الأرض في لحظة زمنية.
+A single close approach to Earth at a point in time.
 
-| الخاصية | النوع | المعنى |
-|---------|------|--------|
-| `designation` | `str` | designation الجرم المقترب — **يبقى بعد الربط** ويُستخدَم للربط |
-| `time` | `datetime` | لحظة الاقتراب (UTC) |
-| `distance` | `float` | المسافة (وحدة فلكية au) |
-| `velocity` | `float` | السرعة النسبية (km/s) |
-| `neo` | `NearEarthObject \| None` | مرجع الجرم — يبدأ `None`، تسنده `NEODatabase` |
+| Property | Type | Meaning |
+|----------|------|---------|
+| `designation` | `str` | the designation of the approaching object — **remains after linking** and is used for linking |
+| `time` | `datetime` | the time of the approach (UTC) |
+| `distance` | `float` | distance (astronomical units, au) |
+| `velocity` | `float` | relative velocity (km/s) |
+| `neo` | `NearEarthObject \| None` | reference to the object — starts as `None`, assigned by `NEODatabase` |
 
-- `date` (property): تاريخ الاقتراب (بلا وقت) — يستخدمه فلتر التاريخ.
-- `__str__`: يعمل حتى لو `neo=None` (اقتراب يتيم) عبر الرجوع إلى `designation`.
+- `date` (property): the date of the approach (without time) — used by the date filter.
+- `__str__`: works even if `neo=None` (an orphaned approach) by falling back to `designation`.
 
-**لماذا هكذا:** فصل المجال يمنع تسرّب الـparsing/الطباعة إليه (SoC). النماذج **قابلة للتعديل** (غير frozen) لأن الربط يسند `neo` ويملأ `approaches`.
+Why this way: separating the domain prevents parsing/printing leakage into it (Separation of Concerns). The models are mutable (not frozen) because linking assigns `neo` and fills `approaches`.
 
 ---
 
-## 2) `extract.py` — قراءة الملفات وبناء الكائنات
+## 2) `extract.py` — Reading files and constructing objects
 
-**ماذا يفعل:** دالتان مستقلتان (standalone) تقرآن ملفَي البيانات، تحوّلان القيم الخام إلى أنواعها، وتنشئان كائنات المجال. تتجاهلان الأعمدة/الحقول الزائدة. البيانات المعطوبة تُنتج `ValueError` واضحًا برقم السطر/الصف.
+What it does: two standalone functions read the two data files, convert raw values to their types, and construct domain objects. They ignore extra columns/fields. Bad data raises a clear `ValueError` with the row/index number.
 
 ### `load_neos(path) -> tuple[NearEarthObject, ...]`
-- يفتح CSV بـ`csv.DictReader`.
-- يتحقّق من وجود عمود `pdes` (وإلا `ValueError` صريح).
-- لكل صف ينشئ `NearEarthObject`: `pdes`→designation, `name`, `diameter`(→NaN إن فارغ), `pha`(→bool).
-- يلتقط أخطاء التحويل ويعيد رميها مع رقم السطر.
-- **يعيد `tuple`** (بيانات concrete معروفة الحجم).
+- Opens the CSV with `csv.DictReader`.
+- Verifies the presence of the `pdes` column (otherwise raises a clear `ValueError`).
+- For each row constructs a `NearEarthObject`: `pdes`→designation, `name`, `diameter` (→NaN if empty), `pha` (→bool).
+- Catches conversion errors and re-raises them with the row number.
+- Returns a `tuple` (concrete, known-size data).
 
 ### `load_approaches(path) -> tuple[CloseApproach, ...]`
-- يفتح JSON بـ`json.load` → dict فيه `fields` و`data`.
-- يبني خريطة `field → index` ويتحقّق من الحقول المطلوبة `des, cd, dist, v_rel`.
-- لكل صف يقرأ **هذه الحقول فقط** (تجاهل الزائد) وينشئ `CloseApproach` (بـ`neo=None` وdesignation مؤقت).
-- **يعيد `tuple`**.
+- Opens JSON with `json.load` → dict containing `fields` and `data`.
+- Builds a map `field → index` and checks for required fields `des, cd, dist, v_rel`.
+- For each row reads **only these fields** (ignores extras) and constructs a `CloseApproach` (with `neo=None` and a provisional designation).
+- Returns a `tuple`.
 
-### دوال مساعدة خاصة
-| الدالة | الدور |
-|--------|------|
-| `_clean_name(v)` | نص مقصوص أو `None` إن فارغ |
-| `_to_float_or_nan(v)` | `float`، أو `NaN` إن غاب |
-| `_to_bool(v)` | `Y/yes/true/1` → `True`، وإلا `False` |
-| `_to_datetime(v)` | يجرّب عدة صيغ تاريخ (مثل `2025-Jan-01 12:00`) |
+### Private helper functions
+| Function | Role |
+|----------|------|
+| `_clean_name(v)` | trimmed text or `None` if empty |
+| `_to_float_or_nan(v)` | `float`, or `NaN` if missing |
+| `_to_bool(v)` | `Y/yes/true/1` → `True`, otherwise `False` |
+| `_to_datetime(v)` | tries several date formats (e.g., `2025-Jan-01 12:00`) |
 
-**لماذا standalone functions:** العملية عديمة الحالة ولا تنتمي لكائن (قاعدة Rubric).
+Why standalone functions: the operation is stateless and doesn't belong to an object (Rubric rule).
 
 ---
 
-## 3) `database.py` — الفهرسة والربط والاستعلام
+## 3) `database.py` — Indexing, linking, and querying
 
-**ماذا يفعل:** `NEODatabase` يخزّن المجموعات المحمّلة، يبني فهارس بحث، **يربط كل اقتراب بجرمه (وبالعكس)**، ويبثّ الاقترابات عبر الفلاتر. لا SQL — قواميس في الذاكرة توفّر بحث O(1).
+What it does: `NEODatabase` stores the loaded collections, builds search indices, **links every approach to its object (and vice versa)**, and streams approaches through filters. No SQL — in-memory dicts provide O(1) lookup.
 
 ### `class NEODatabase`
 
-**المُنشئ** `__init__(neos, approaches)`:
-1. يحفظ المجموعتين كـ`tuple` (concrete).
-2. يبني `_by_designation` (dict).
-3. يبني `_by_name` (dict).
-4. يستدعي `link()`.
+Constructor `__init__(neos, approaches)`:
+1. stores the collections as `tuple`s (concrete).
+2. builds `_by_designation` (dict).
+3. builds `_by_name` (dict).
+4. calls `link()`.
 
-**`link()`** — الربط الثنائي (قابل لإعادة الاستدعاء بأمان):
+`link()` — the bidirectional linking (safe to call multiple times):
 ```
-لكل neo:  neo.approaches.clear()          # يمنع التكرار عند إعادة الربط
-لكل approach:
+for neo:  neo.approaches.clear()          # prevents duplication on re-link
+for approach:
     neo = _by_designation.get(normalize(approach.designation))
-    approach.neo = neo                      # ربط اتجاه CA → NEO
-    if neo: neo.approaches.append(approach) # ربط اتجاه NEO → CA
-    # بلا مطابقة → approach.neo يبقى None (يتيم باقٍ)
+    approach.neo = neo                      # link direction CA → NEO
+    if neo: neo.approaches.append(approach) # link direction NEO → CA
+    # no match → approach.neo stays None (remains orphaned)
 ```
 
-**البحث:**
-- `get_neo_by_designation(d)` / `get_neo_by_name(n)`: بحث O(1) بعد التطبيع؛ يعيد `None` للإدخال الفارغ أو غير الموجود.
+Searching:
+- `get_neo_by_designation(d)` / `get_neo_by_name(n)`: O(1) lookup after normalization; returns `None` for empty or missing input.
 
-**الاستعلام:**
-- `query(filters=()) -> Iterator[CloseApproach]`: **generator** يمرّ على الاقترابات ويُخرِج ما يطابق `all(f.matches(a) for f in filters)` — **بلا if/elif**، وبلا تحويل لقائمة.
+Querying:
+- `query(filters=()) -> Iterator[CloseApproach]`: a **generator** that iterates approaches and yields those matching `all(f.matches(a) for f in filters)` — **no if/elif**, and no conversion to a list.
 
-### سياسات الفهرسة (دوال ساكنة خاصة)
-| الدالة | السياسة |
-|--------|---------|
-| `_build_designation_index` | تكرار الـdesignation → `ValueError` (مُعرِّف فريد) |
-| `_build_name_index` | يتجاهل الأسماء الفارغة؛ عند التكرار: **أول-يفوز** (`setdefault`) |
+### Indexing policies (private static functions)
+| Function | Policy |
+|----------|--------|
+| `_build_designation_index` | duplicate designations → `ValueError` (identifier must be unique) |
+| `_build_name_index` | ignores empty names; on duplicates: **first-wins** (`setdefault`) |
 
-### التطبيع (دوال على مستوى الموديول)
-| الدالة | العملية |
-|--------|---------|
+### Normalization (module-level functions)
+| Function | Operation |
+|----------|-----------|
 | `_normalize_designation` | `strip()` |
-| `_normalize_name` | `strip().casefold()` (بحث غير حسّاس لحالة الأحرف) |
+| `_normalize_name` | `strip().casefold()` (case-insensitive lookup) |
 
-**لماذا هكذا:** الربط والفهرسة سلوك بيانات (ينتمي للـDB لا للنماذج). التطبيع في مكان واحد (DRY). `query` كسول (كفاءة ذاكرة).
+Why this way: linking and indexing are data behaviors (belong to the DB, not the models). Normalization in one place (DRY). `query` is lazy (memory efficient).
 
 ---
 
-## 4) `filters.py` — نظام التصفية (Strategy Pattern)
+## 4) `filters.py` — Filtering system (Strategy Pattern)
 
-**ماذا يفعل:** يحوّل كل معيار بحث إلى **استراتيجية صغيرة صريحة** تحقّق عقدًا موحّدًا، فتتركّب أي مجموعة معايير بلا منطق تفريعي.
+What it does: converts each search criterion into a small explicit strategy that implements a uniform contract, allowing any set of criteria to be composed without branching logic.
 
 ### `class FilterStrategy(Protocol)`
-العقد: أي كائن له `matches(approach) -> bool` يُعدّ فلترًا. (Protocol = اقتران بنيوي، بلا وراثة إجبارية.)
+Contract: any object with `matches(approach) -> bool` is considered a filter. (Protocol = structural typing, with no forced inheritance.)
 
-### الاستراتيجيات الملموسة (كلها `@dataclass(frozen=True)`)
-| الصنف | المعيار |
-|-------|---------|
-| `DateFilter(on)` | التاريخ يساوي |
-| `StartDateFilter(start)` / `EndDateFilter(end)` | نطاق زمني |
-| `MinDistanceFilter` / `MaxDistanceFilter` | حدود المسافة |
-| `MinVelocityFilter` / `MaxVelocityFilter` | حدود السرعة |
-| `MinDiameterFilter` / `MaxDiameterFilter` | حدود القطر (تتعامل مع NaN) |
-| `HazardousFilter(hazardous)` | حالة الخطورة (تحرس `neo=None`) |
+### Concrete strategies (all `@dataclass(frozen=True)`)
+| Class | Criterion |
+|-------|-----------|
+| `DateFilter(on)` | date equals |
+| `StartDateFilter(start)` / `EndDateFilter(end)` | time window |
+| `MinDistanceFilter` / `MaxDistanceFilter` | distance bounds |
+| `MinVelocityFilter` / `MaxVelocityFilter` | velocity bounds |
+| `MinDiameterFilter` / `MaxDiameterFilter` | diameter bounds (handles NaN) |
+| `HazardousFilter(hazardous)` | hazardous state (guards `neo=None`) |
 
-كل صنف يحمل **معيارًا واحدًا** ويطبّق `matches` واضحًا وآمنًا نوعيًا.
+Each class holds a **single** criterion and implements a clear, type-safe `matches`.
 
 ### `create_filters(**criteria) -> list[FilterStrategy]`
-- يستقبل معايير المستخدم (كلها اختيارية).
-- يبني قائمة الاستراتيجيات المطلوبة فقط (المعيار `None` = لا استراتيجية).
-- استدعاء افتراضي بلا معايير → قائمة فارغة تطابق كل شيء.
+- accepts user criteria (all optional).
+- builds a list of only the required strategies (criterion `None` = no strategy).
+- default call with no criteria → empty list which matches everything.
 
 ### `_diameter_or_nan(approach) -> float`
-helper واحد يعيد قطر الجرم أو `NaN` (عند `neo=None` أو قطر مجهول) — **يزيل التكرار الوحيد** بين فلترَي القطر.
+A single helper that returns the object's diameter or `NaN` (for `neo=None` or unknown diameter) — **removes the only duplication** between the two diameter filters.
 
-**لماذا Strategy:** إضافة معيار جديد = صنف جديد فقط، دون لمس `query` (OCP). التركيب يتم بـ`all(...)` (بلا if/elif، بلا تكرار زائد).
+Why Strategy: adding a new criterion = new class only, without touching `query` (Open/Closed Principle). Composition is via `all(...)` (no if/elif or excessive duplication).
 
 ---
 
-## 5) `facade.py` — الواجهة الموحّدة (Facade Pattern)
+## 5) `facade.py` — Unified facade (Facade Pattern)
 
-**ماذا يفعل:** `NEOExplorerFacade` هو **نقطة الوصول الوحيدة للـCLI**. ينسّق التحميل والتخزين والتصفية، لكنه **يفوّض** كل عمل فعلي — بلا parsing/linking/formatting بداخله.
+What it does: `NEOExplorerFacade` is the **single access point for the CLI**. It coordinates loading, storage, and filtering, but **delegates** all actual work — no parsing/linking/formatting happens inside it.
 
 ### `class NEOExplorerFacade`
-| العضو | الدور |
-|-------|------|
-| `__init__(database)` | يحقن `NEODatabase` (تبعية صريحة، قابلة للـmock) |
-| `from_files(neos_path, approaches_path)` (classmethod) | يحمّل عبر `extract` ثم يبني `NEODatabase` ويعيد facade جاهزًا |
-| `get_neo_by_designation(d)` | تفويض إلى الـDB |
-| `get_neo_by_name(n)` | تفويض إلى الـDB |
-| `search(filters=(), limit=None)` | `database.query(filters)` ثم `islice(results, limit)` إن وُجد حدّ — **يبقى streaming** |
-
-**لماذا Facade:** يعزل الـCLI عن الطبقات الداخلية (Low Coupling). الواجهة الصغيرة وحدود المسؤولية تقلّلان خطر تحوّله إلى God Object. `search` يُطبّق الحدّ عبر `islice` دون تحويل لقائمة.
-
----
-
-## 6) `display.py` — الطباعة للطرفية
-
-**ماذا يفعل:** دوال مستقلة تحوّل كائنات المجال إلى نص وتطبعه. تُبقي منطق العرض خارج الـDB والـFacade.
-
-| الدالة | الدور |
+| Member | Role |
 |--------|------|
-| `print_approaches(approaches)` | يطبع كل اقتراب؛ إن لم يوجد أي نتيجة يطبع إشعارًا. يستهلك **iterable/generator** (بثّ) |
-| `print_neo(neo)` | يطبع الجرم + عدد اقتراباته المعروفة |
+| `__init__(database)` | injects `NEODatabase` (explicit dependency, mockable) |
+| `from_files(neos_path, approaches_path)` (classmethod) | loads via `extract`, then constructs `NEODatabase` and returns a ready facade |
+| `get_neo_by_designation(d)` | delegates to the DB |
+| `get_neo_by_name(n)` | delegates to the DB |
+| `search(filters=(), limit=None)` | `database.query(filters)` then `islice(results, limit)` if a limit is provided — **remains streaming** |
 
-**لماذا standalone functions:** العرض عملية عديمة الحالة لا تنتمي لكائن.
-
----
-
-## 7) `write.py` — التصدير إلى ملفات
-
-**ماذا يفعل:** دوال مستقلة تسلسل الاقترابات إلى CSV أو JSON. لا تصفية، لا طباعة، لا حالة.
-
-| الدالة | الدور |
-|--------|------|
-| `write_to_csv(approaches, path)` | يكتب CSV بأعمدة ثابتة؛ القطر المجهول → `""` |
-| `write_to_json(approaches, path)` | يكتب قائمة كائنات JSON؛ القطر المجهول → `null` |
-| `_serialize(approach, *, nan_diameter)` (خاص) | يبني سجلًّا مسطّحًا؛ يعالج `neo=None` (اليتيم) والاسم الفارغ والقطر NaN |
-
-الأعمدة: `datetime_utc, distance_au, velocity_km_s, designation, name, diameter_km, potentially_hazardous`.
-
-**لماذا هكذا:** التسلسل خارج النماذج (Rubric يمنع serialization في المجال). صيغة NaN تختلف بين CSV (`""`) وJSON (`null`) لإنتاج مخرجات صالحة.
+Why Facade: isolates the CLI from inner layers (Low Coupling). A small surface area and limited responsibilities reduce the risk of becoming a God Object. `search` applies the limit via `islice` without converting to a list.
 
 ---
 
-## 8) `cli.py` — محوّل سطر الأوامر
+## 6) `display.py` — Terminal printing
 
-**ماذا يفعل:** محوّل رقيق: يقرأ الوسائط، يحوّلها إلى فلاتر، يطلب من الـFacade، ويوجّه النتائج للعرض/التصدير. **بلا parsing/linking/filtering بداخله.**
+What it does: standalone functions convert domain objects to text and print them. Keeps display logic out of the DB and the Facade.
 
-### الدوال العامة والخاصة
-| الدالة | الدور |
-|--------|------|
-| `main(argv=None)` | يبني الـparser، يحمّل الـFacade، ينفّذ المعالِج المناسب. يلتقط `FileNotFoundError/ValueError/KeyError/TypeError` ويحوّلها لرسالة خطأ أنيقة |
-| `_build_parser()` | يبني argparse: `--neos`/`--cad` (افتراضها العيّنات) + أمرا `query` و`inspect` |
-| `_add_query_command` | يسجّل خيارات `query` (التاريخ/المسافة/السرعة/القطر/hazardous/limit/outfile) |
-| `_add_inspect_command` | يسجّل `inspect` (`--designation`/`--name` حصريًا + `--verbose`) |
-| `_run_query(facade, args)` | يتحقّق من النطاقات → `create_filters` → `facade.search` → طباعة أو تصدير |
-| `_run_inspect(facade, args)` | يجلب الجرم؛ إن وُجد يطبعه (و`--verbose` يعرض اقتراباته)؛ وإلا يعيد 1 |
-| `_export(results, outfile)` | يختار `write_to_csv`/`write_to_json` حسب اللاحقة |
-| `_validate_ranges(args)` | يرفض `min > max` (مسافة/سرعة/قطر) و`start_date > end_date` |
-| `_non_negative_float` / `_non_negative_int` | أنواع argparse ترفض القيم السالبة |
+| Function | Role |
+|----------|------|
+| `print_approaches(approaches)` | prints each approach; if no results it prints a notice. Consumes an **iterable/generator** (streaming) |
+| `print_neo(neo)` | prints the object + the count of its known approaches |
 
-**تدفّق أمر واحد:** `argv → parse_args → from_files → create_filters → facade.search → display/write`.
-
-**لماذا هكذا:** الـCLI طبقة عرض/دخول فقط؛ كل منطق الأعمال في الطبقات الأدنى (SoC + Low Coupling).
+Why standalone functions: display is stateless and does not belong to an object.
 
 ---
 
-## 9) `__main__.py` — نقطة الدخول
+## 7) `write.py` — Exporting to files
 
-**ماذا يفعل:** يمكّن `python -m neo_explorer`. سطر واحد فعّال:
+What it does: standalone functions serialize approaches to CSV or JSON. No filtering, no printing, no state.
+
+| Function | Role |
+|----------|------|
+| `write_to_csv(approaches, path)` | writes CSV with fixed columns; unknown diameter → `""` |
+| `write_to_json(approaches, path)` | writes a list of JSON objects; unknown diameter → `null` |
+| `_serialize(approach, *, nan_diameter)` (private) | builds a flat record; handles `neo=None` (orphan), empty name, and NaN diameter |
+
+Columns: `datetime_utc, distance_au, velocity_km_s, designation, name, diameter_km, potentially_hazardous`.
+
+Why this way: serialization is kept out of the models (Rubric forbids serialization in the domain). The NaN form differs between CSV (`""`) and JSON (`null`) to produce valid outputs.
+
+---
+
+## 8) `cli.py` — Command-line interface
+
+What it does: a thin adapter that reads arguments, converts them to filters, calls the Facade, and directs results to display/export. **No parsing/linking/filtering inside it.**
+
+### Public and private functions
+| Function | Role |
+|----------|------|
+| `main(argv=None)` | builds the parser, loads the Facade, executes the appropriate handler. Catches `FileNotFoundError/ValueError/KeyError/TypeError` and converts them to a user-friendly error message |
+| `_build_parser()` | builds `argparse`: `--neos`/`--cad` (defaults are the sample files) + commands `query` and `inspect` |
+| `_add_query_command` | registers `query` options (date/distance/velocity/diameter/hazardous/limit/outfile) |
+| `_add_inspect_command` | registers `inspect` (`--designation`/`--name` mutually exclusive + `--verbose`) |
+| `_run_query(facade, args)` | validates ranges → `create_filters` → `facade.search` → print or export |
+| `_run_inspect(facade, args)` | fetches the object; if found prints it (and `--verbose` prints its approaches); otherwise returns 1 |
+| `_export(results, outfile)` | chooses `write_to_csv`/`write_to_json` based on the extension |
+| `_validate_ranges(args)` | rejects `min > max` (distance/velocity/diameter) and `start_date > end_date` |
+| `_non_negative_float` / `_non_negative_int` | argparse types that reject negative values |
+
+Single command flow: `argv → parse_args → from_files → create_filters → facade.search → display/write`.
+
+Why this way: the CLI is only a presentation/entry layer; all business logic lives in lower layers (SoC + Low Coupling).
+
+---
+
+## 9) `__main__.py` — Entry point
+
+What it does: enables `python -m neo_explorer`. One effective line:
 ```python
 from .cli import main
 raise SystemExit(main())
 ```
-يستدعي `main()` ويحوّل قيمة الإرجاع إلى رمز خروج للنظام.
+It calls `main()` and converts its return value to a process exit code.
 
 ---
 
-## 10) `__init__.py` — واجهة الحزمة
+## 10) `__init__.py` — Package interface
 
-**ماذا يفعل:** يحدّد ما تصدّره الحزمة للاستيراد المباشر، ويحمل docstring الحزمة.
+What it does: determines what the package exports for direct import, and holds the package docstring.
 
-يصدّر عبر `__all__`: `NearEarthObject`, `CloseApproach`, `NEODatabase`, `NEOExplorerFacade`.
+It exports via `__all__`: `NearEarthObject`, `CloseApproach`, `NEODatabase`, `NEOExplorerFacade`.
 
-**لماذا:** واجهة عامة واضحة للاستخدام البرمجي (غير الـCLI)، مع إخفاء التفاصيل الداخلية.
+Why: a clear public interface for programmatic use (not the CLI), hiding internal details.
 
 ---
 
-## خريطة الاعتمادات (من يستورد من)
+## Dependency map (who imports what)
 
 ```
 __main__ ─▶ cli ─▶ facade ─▶ extract ─▶ models
@@ -267,9 +267,9 @@ __main__ ─▶ cli ─▶ facade ─▶ extract ─▶ models
                  └─▶ filters, models
 ```
 
-- الاتجاه أحادي (بلا دورات).
-- `models` في القاع لا يستورد أي طبقة.
-- `cli` في القمة يعرف `facade` (+ أدوات العرض/التصدير/الفلاتر).
+- Direction is one-way (no cycles).
+- `models` at the bottom does not import any layer.
+- `cli` at the top knows `facade` (+ display/export/filters utilities).
 
-## نصيحة للقراءة الأولى
-ابدأ بـ`models.py` (تفهم البيانات)، ثم `extract.py` (كيف تُبنى)، ثم `database.py` (كيف تُربَط وتُستعلَم)، ثم `filters.py` (كيف تُصفّى)، ثم `facade.py` و`cli.py` (كيف تُستخدَم). للتشغيل الحيّ راجع `README.md`.
+## First-reading tip
+Start with `models.py` (understand the data), then `extract.py` (how they are built), then `database.py` (how they are linked and queried), then `filters.py` (how they are filtered), then `facade.py` and `cli.py` (how they are used). For live usage instructions, see `README.md`.

@@ -1,198 +1,198 @@
-# NEO Explorer — مستكشف الأجرام القريبة من الأرض
+# NEO Explorer — Near-Earth Object Explorer
 
-أداة سطر أوامر (CLI) تقرأ بيانات NASA/JPL الحقيقية عن **الأجرام القريبة من الأرض** (Near-Earth Objects) واقتراباتها من الأرض، تربطها في الذاكرة، وتتيح البحث والاستكشاف والتصدير.
+A command-line tool (CLI) that reads real NASA/JPL data about **Near-Earth Objects (NEOs)** and their close approaches to Earth, links them in memory, and enables searching, exploration, and exporting.
 
-يقرأ النظام ملفين:
-- **`neos.csv`** — كتالوج الأجرام (تعريف، اسم، قطر، هل يمثّل خطرًا).
-- **`cad.json`** — سجل الاقترابات القريبة (زمن، مسافة، سرعة، والـ`designation` الرابط).
-
----
-
-## المزايا
-
-- تحميل وتحليل CSV + JSON إلى كائنات Python.
-- ربط ثنائي الاتجاه بين كل جرم واقتراباته.
-- بحث بمعايير **قابلة للتركيب** عبر **Strategy Pattern**.
-- واجهة موحّدة رقيقة للـCLI عبر **Facade Pattern**.
-- تصدير النتائج إلى CSV أو JSON.
-- **صفر تبعيات تشغيل** (مكتبة Python القياسية فقط).
+The system reads two files:
+- **`neos.csv`** — the catalog of objects (designation, name, diameter, whether hazardous).
+- **`cad.json`** — the close approach records (time, distance, velocity, and the linking `designation`).
 
 ---
 
-## المتطلبات والتشغيل
+## Features
 
-- Python ≥ 3.10 (بلا تبعيات خارجية).
+- Load and parse CSV + JSON into Python objects.
+- Bidirectional linking between each NEO and its approaches.
+- Composable search criteria via the **Strategy Pattern**.
+- Thin unified CLI façade via the **Facade Pattern**.
+- Export results to CSV or JSON.
+- **Zero runtime dependencies** (standard Python library only).
+
+---
+
+## Requirements and Running
+
+- Python ≥ 3.10 (no external dependencies).
 
 ```bash
-# يعمل مباشرة على العيّنات الافتراضية بلا وسائط
+# Works out-of-the-box on the sample data with no arguments
 python -m neo_explorer query
 
-# مع بياناتك الحقيقية
+# With your real data
 python -m neo_explorer --neos data/neos.csv --cad data/cad.json query --hazardous
 
-# أو بعد التثبيت (يوفّر الأمر neo-explorer)
+# Or after installation (provides the neo-explorer command)
 pip install -e .
 neo-explorer inspect --name Halley
 ```
 
-> المسارات الافتراضية هي العيّنات `data/neos.sample.csv` و`data/cad.sample.json`، فيعمل النظام out-of-box. مرّر `--neos`/`--cad` لبياناتك الحقيقية.
+> The default paths are the samples `data/neos.sample.csv` and `data/cad.sample.json`, so the system works out of the box. Pass `--neos`/`--cad` for your real data.
 
 ---
 
-## أوامر الاستخدام
+## Commands
 
-### `query` — البحث في الاقترابات
+### `query` — Search close approaches
 
 ```bash
 python -m neo_explorer --neos data/neos.sample.csv --cad data/cad.sample.json \
     query --hazardous --max-distance 0.03 --limit 10
 ```
 
-| الخيار | المعنى |
+| Option | Meaning |
 |--------|--------|
-| `--date YYYY-MM-DD` | اقترابات في تاريخ محدد |
-| `--start-date` / `--end-date` | نطاق زمني |
-| `--min-distance` / `--max-distance` | حدود المسافة (au) |
-| `--min-velocity` / `--max-velocity` | حدود السرعة (km/s) |
-| `--min-diameter` / `--max-diameter` | حدود القطر (km) |
-| `--hazardous` / `--no-hazardous` | قصر على (أو استبعاد) الخطِرة |
-| `--limit N` | حدّ النتائج (0 = بلا حدّ) |
-| `--outfile out.csv` / `out.json` | تصدير بدل الطباعة |
+| `--date YYYY-MM-DD` | Approaches on a specific date |
+| `--start-date` / `--end-date` | Time range |
+| `--min-distance` / `--max-distance` | Distance bounds (au) |
+| `--min-velocity` / `--max-velocity` | Velocity bounds (km/s) |
+| `--min-diameter` / `--max-diameter` | Diameter bounds (km) |
+| `--hazardous` / `--no-hazardous` | Restrict to (or exclude) hazardous ones |
+| `--limit N` | Limit results (0 = no limit) |
+| `--outfile out.csv` / `out.json` | Export instead of printing |
 
-| `--min-*` أكبر من `--max-*` | يُرفَض برسالة خطأ واضحة (وكذلك `--start-date` بعد `--end-date`) |
-| `--limit` سالب | يُرفَض برسالة خطأ |
+| `--min-*` greater than `--max-*` | Rejected with a clear error message (also `--start-date` after `--end-date`) |
+| `--limit` negative | Rejected with an error message |
 
-### `inspect` — فحص جرم واحد
+### `inspect` — Inspect a single NEO
 
 ```bash
 python -m neo_explorer inspect --name Alpha
-python -m neo_explorer inspect --designation "2020 AB" --verbose   # يعرض اقترابات الجرم أيضًا
+python -m neo_explorer inspect --designation "2020 AB" --verbose   # also shows the NEO's approaches
 ```
 
-| الخيار | المعنى |
+| Option | Meaning |
 |--------|--------|
-| `--designation` / `--name` | تحديد الجرم (أحدهما مطلوب) |
-| `--verbose` | عرض قائمة اقترابات الجرم بعد وصفه |
+| `--designation` / `--name` | Identify the NEO (one is required) |
+| `--verbose` | Show the list of the NEO's approaches after its description |
 
 ---
 
-## بنية المشروع
+## Project Structure
 
 ```
 neo_explorer/
-├── data/                 عيّنات البيانات (CSV/JSON)
+├── data/                 sample data (CSV/JSON)
 └── neo_explorer/
-    ├── models.py         NearEarthObject / CloseApproach   (كائنات المجال + __str__)
-    ├── extract.py        load_neos / load_approaches        (قراءة الملفات وبناء الكائنات)
-    ├── database.py       NEODatabase                        (فهرسة + ربط + بثّ الاستعلام)
-    ├── filters.py        FilterStrategy + الاستراتيجيات      (Strategy Pattern)
+    ├── models.py         NearEarthObject / CloseApproach   (domain objects + __str__)
+    ├── extract.py        load_neos / load_approaches        (read files and build objects)
+    ├── database.py       NEODatabase                        (indexing + linking + streaming queries)
+    ├── filters.py        FilterStrategy + strategies        (Strategy Pattern)
     ├── facade.py         NEOExplorerFacade                  (Facade Pattern)
-    ├── write.py          write_to_csv / write_to_json       (تصدير)
-    ├── display.py        print_approaches / print_neo       (طباعة الطرفية)
-    ├── cli.py            محوّل الأوامر                        (argparse → facade)
-    └── __main__.py       نقطة الدخول
+    ├── write.py          write_to_csv / write_to_json       (exporting)
+    ├── display.py        print_approaches / print_neo       (terminal printing)
+    ├── cli.py            command adapter                     (argparse → facade)
+    └── __main__.py       entry point
 ```
 
-| الوحدة | المسؤولية | النوع |
-|--------|-----------|------|
-| `models.py` | كائنات بيانات المجال و`__str__` فقط — لا I/O، لا parsing | Classes |
-| `extract.py` | قراءة CSV/JSON، تحويل الأنواع، تجاهل الحقول الزائدة | Standalone functions |
-| `database.py` | حفظ المجموعات، بناء الفهارس، الربط، `query()` كسول | Class |
-| `filters.py` | عقد `FilterStrategy` + استراتيجيات + `create_filters` | Strategy |
-| `facade.py` | واجهة موحّدة رقيقة تنسّق بقية الطبقات | Facade |
-| `write.py` / `display.py` | التصدير / الطباعة | Standalone functions |
-| `cli.py` | قراءة الوسائط → فلاتر → facade → عرض/تصدير | Adapter رقيق |
+| Module | Responsibility | Type |
+|--------|----------------|------|
+| `models.py` | Domain data objects and `__str__` only — no I/O, no parsing | Classes |
+| `extract.py` | Read CSV/JSON, convert types, ignore extra fields | Standalone functions |
+| `database.py` | Store collections, build indexes, link, lazy `query()` | Class |
+| `filters.py` | `FilterStrategy` contract + strategies + `create_filters` | Strategy |
+| `facade.py` | Thin unified facade coordinating the other layers | Facade |
+| `write.py` / `display.py` | Export / printing | Standalone functions |
+| `cli.py` | Read args → filters → facade → display/export | Thin adapter |
 
 ---
 
-## المعمارية
+## Architecture
 
-### الطبقات (اتجاه أحادي، بلا دورات)
+### Layers (one-way, no cycles)
 
 ```
         ┌──────────────────────────────────────────────┐
-        │  cli.py  (adapter: args → filters → facade)   │  ← الدخول/العرض
+        │  cli.py  (adapter: args → filters → facade)   │  ← entry/display
         └───────────────┬───────────────────────────────┘
-                        │ يعرف Facade فقط
+                        │ knows only the Facade
         ┌───────────────▼───────────────────────────────┐
-        │  facade.py — NEOExplorerFacade  (تنسيق رقيق)   │  ← الواجهة الموحّدة
+        │  facade.py — NEOExplorerFacade  (thin orchestration) │  ← unified interface
         └───┬──────────────┬───────────────┬─────────────┘
             │              │               │
    ┌────────▼──────┐ ┌─────▼───────┐ ┌─────▼──────────┐
-   │  extract.py   │ │ database.py │ │   filters.py    │  ← منطق الأعمال
+   │  extract.py   │ │ database.py │ │   filters.py    │  ← business logic
    └───────┬───────┘ └─────┬───────┘ └─────┬──────────┘
            └───────────────▼───────────────┘
                     ┌──────────────┐
-                    │  models.py   │  ← المجال (لا يعتمد على أحد)
+                    │  models.py   │  ← domain (depends on no one)
                     └──────────────┘
 
-   write.py / display.py  ← الإخراج (يستدعيها الـCLI، تعتمد على models فقط)
+   write.py / display.py  ← output (invoked by the CLI, depend only on models)
 ```
 
-القاعدة: الاعتماد يتجه للأسفل فقط. `models` نقيّ لا يعرف أي طبقة، والـCLI لا يعرف إلا الـFacade.
+Rule: dependencies point downward only. `models` is pure and knows no layer, and the CLI knows only the Facade.
 
-### الأنماط المستخدَمة
+### Patterns used
 
 **① Strategy Pattern** — `filters.py`
-كل معيار تصفية استراتيجية `@dataclass(frozen=True)` تحقّق العقد `matches(approach) -> bool`. تُركَّب المعايير عبر `all(f.matches(a) for f in filters)` داخل `query`، فإضافة معيار جديد = **صنف جديد فقط** دون تعديل الاستعلام (OCP).
+Each filter criterion is a `@dataclass(frozen=True)` strategy that implements the contract `matches(approach) -> bool`. Filters are composed via `all(f.matches(a) for f in filters)` inside `query`, so adding a new criterion = **just a new class** without modifying the query (OCP).
 
 **② Facade Pattern** — `facade.py`
-`NEOExplorerFacade` يوفّر واجهة صغيرة (`from_files`, `get_neo_by_designation`, `get_neo_by_name`, `search`) ويفوّض العمل إلى الطبقات الداخلية — بلا parsing/linking/formatting بداخله. الواجهة الصغيرة وحدود المسؤولية تقلّلان خطر تحوّله إلى God Object.
+`NEOExplorerFacade` provides a small interface (`from_files`, `get_neo_by_designation`, `get_neo_by_name`, `search`) and delegates work to the internal layers — no parsing/linking/formatting inside it. The small interface and limited responsibility reduce the risk of it becoming a God Object.
 
-> لا أنماط أخرى عمدًا (لا Repository/Factory/ORM) — التزامًا بـKISS/YAGNI.
+> No other patterns intentionally (no Repository/Factory/ORM) — adhering to KISS/YAGNI.
 
-### مبادئ التصميم
+### Design principles
 
-| المبدأ | التطبيق |
+| Principle | Application |
 |--------|---------|
-| SRP | كل وحدة مسؤولية واحدة |
-| OCP | معيار تصفية جديد لا يلمس الاستعلام |
-| DIP | الـCLI يعتمد على تجريد Facade؛ الـFacade تُحقَن بـ`NEODatabase` |
-| SoC | Domain / Extract / Storage / Filter / Presentation / Export منفصلة |
-| DRY | تحويل مركزي في extract؛ `_diameter_or_nan` وnormalization في مكان واحد |
-| KISS / YAGNI | قواميس بدل قاعدة بيانات؛ دوال حرة حيث لا حالة؛ لا abstractions زائدة |
-| Composition over inheritance | تركيب الفلاتر والـDB بدل هرميات وراثة |
+| SRP | Each module has a single responsibility |
+| OCP | A new filter does not touch the query |
+| DIP | The CLI depends on the Facade abstraction; the Facade is injected with a `NEODatabase` |
+| SoC | Domain / Extract / Storage / Filter / Presentation / Export are separated |
+| DRY | Centralized conversion in extract; `_diameter_or_nan` and normalization in one place |
+| KISS / YAGNI | Dictionaries instead of a database; free functions where there is no state; no excessive abstractions |
+| Composition over inheritance | Compose filters and the DB instead of inheritance hierarchies |
 
 ---
 
-## تدفق البيانات (من البداية للنهاية)
+## Data flow (from start to finish)
 
-مثال: `query --hazardous --max-distance 0.03`
+Example: `query --hazardous --max-distance 0.03`
 
 ```
-1. cli.main() → argparse ينتج الوسائط
-2. NEOExplorerFacade.from_files(neos, cad)          ← التحميل مرة واحدة
+1. cli.main() → argparse produces the args
+2. NEOExplorerFacade.from_files(neos, cad)          ← load once
      ├─ extract.load_neos(csv)       → tuple[NearEarthObject]   (concrete)
-     ├─ extract.load_approaches(json)→ tuple[CloseApproach]      (concrete، designation مؤقت، neo=None)
+     ├─ extract.load_approaches(json)→ tuple[CloseApproach]      (concrete, temporary designation, neo=None)
      └─ NEODatabase(neos, approaches):
-           ├─ يبني فهرس designation (strip، تكرار→ValueError)
-           ├─ يبني فهرس name (strip+casefold، أول-يفوز)
-           └─ link(): لكل approach → approach.neo = neo ، وneo.approaches.append(approach)
-                        (بلا مطابقة → neo يبقى None: اقتراب يتيم باقٍ)
+           ├─ builds designation index (strip, duplicates → ValueError)
+           ├─ builds name index (strip+casefold, first-wins)
+           └─ link(): for each approach → approach.neo = neo, and neo.approaches.append(approach)
+                        (no match → neo remains None: orphan approach remains)
 3. create_filters(...) → [MaxDistanceFilter(0.03), HazardousFilter(True)]
 4. facade.search(filters, limit=10):
      └─ database.query(filters)  ← generator: yield approach if all(f.matches(approach))
-     └─ islice(results, 10)      ← الحدّ بلا تحويل لقائمة
-5. display.print_approaches(results) ← يستهلك الـgenerator ويطبع
+     └─ islice(results, 10)      ← limiting without converting to a list
+5. display.print_approaches(results) ← consumes the generator and prints
 ```
 
-### قرارات البيانات
+### Data decisions
 
-- **القطر المفقود** = `float("nan")` (لا `None`)، يُفحَص بـ`math.isnan`؛ فلاتر القطر لا تطابق المجهول.
-- **الاقتراب اليتيم** (بلا جرم مطابق): `neo=None`، يبقى في القاعدة، لا ينهار البحث/العرض بسببه.
-- **الوقت** بتوقيت UTC (`datetime`).
-- **concrete مقابل streaming**: البيانات المحمّلة والفهارس **concrete** (tuple/dict)؛ نتائج الاستعلام والحدّ **streaming** (generator + `islice`).
-- **الحقول الزائدة** في CSV/JSON تُتجاهَل ولا تُربَط بالكائنات.
-- **البيانات المعطوبة** (عمود `pdes` ناقص، حقل مفقود، قيمة غير رقمية) تُنتج رسالة خطأ واضحة مع رقم السطر/الصف بدل انهيار خام.
+- **Missing diameter** = `float("nan")` (not `None`), checked with `math.isnan`; diameter filters do not match unknown.
+- **Orphan approach** (no matching NEO): `neo=None`, it remains in the database, searches/displays do not crash because of it.
+- **Time** in UTC (`datetime`).
+- **concrete vs streaming**: loaded data and indexes are **concrete** (tuple/dict); query results and limiting are **streaming** (generator + `islice`).
+- **Extra fields** in CSV/JSON are ignored and not attached to objects.
+- **Broken data** (missing `pdes` column, missing field, non-numeric value) produces a clear error message with the row/record number instead of a raw crash.
 
 ---
 
-## الاختبار
+## Testing
 
 ```bash
 pip install -e ".[dev]"
-pytest        # اختبارات لكل طبقة: models / extract / database / filters / facade
-ruff check .  # فحص الأسلوب (PEP 8)
+pytest        # tests for every layer: models / extract / database / filters / facade
+ruff check .  # style check (PEP 8)
 ```
 
-تغطّي الاختبارات: توزيع الخصائص، سياسة NaN، الربط الثنائي، الاقتراب اليتيم، normalization، تكرار المفاتيح، تركيب الفلاتر، والبثّ الكسول.
+The tests cover: attribute distribution, NaN policy, bidirectional linking, orphan approach, normalization, duplicate keys, filter composition, and lazy streaming.
