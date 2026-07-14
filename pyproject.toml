@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nasa-neo-explorer"
+version = "1.0.0"
+description = "Command-line explorer for NASA/JPL near-Earth object close approaches"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{name = "Mohamed", email = "newtonsudan31@gmail.com"}]
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.5"]
+
+[project.scripts]
+neo-explorer = "neo_explorer.cli:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 120

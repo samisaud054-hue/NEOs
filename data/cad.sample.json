@@ -1,0 +1,9 @@
+{
+  "signature": {"source": "NASA/JPL SBDB Close Approach Data API"},
+  "count": "2",
+  "fields": ["des", "cd", "dist", "v_rel"],
+  "data": [
+    ["2020 AB", "2025-Jan-01 12:00", "0.020", "18.0"],
+    ["2021 CD", "2025-Jan-02 09:30", "0.050", "10.0"]
+  ]
+}
